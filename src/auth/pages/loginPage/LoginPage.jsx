@@ -1,13 +1,24 @@
 // src/components/Login.jsx
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Aquí podrías validar los datos si quieres
+    // Simulación de login exitoso:
+    navigate("/profiles"); // Redirige a "¿Quién está viendo?"
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="w-full max-w-md bg-opacity-80 bg-zinc-900 rounded-2xl p-8 shadow-lg">
         <h1 className="text-4xl font-bold text-red-600 text-center mb-8">Tecflix</h1>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-semibold mb-1">Correo electrónico</label>
             <input
