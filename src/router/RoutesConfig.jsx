@@ -23,6 +23,6 @@ export const router = createBrowserRouter([
     },
     {
         path: "/browse",
-        element: <BrowsePage />
+        element: <BrowsePage></BrowsePage>
     }
 ]);
