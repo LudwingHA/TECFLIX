@@ -6,11 +6,12 @@ import ProfilesPage from "../auth/pages/profiles/ProfilesPage";
 import { ProfileProtectedRoute } from "./ProfileProtectedRoute";
 import { ProtectedRoute } from "./ProtectedRoutes";
 import CreateProfilePage from "../auth/pages/profiles/CreateProfilePage";
+import LandingPage from "../auth/pages/Home/Home";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <ProfileProtectedRoute><ProfilesPage /></ProfileProtectedRoute>
+    element: <LandingPage></LandingPage>
   },
   {
     path: "/login",
