@@ -8,6 +8,7 @@ import { ProtectedRoute } from "./ProtectedRoutes";
 import CreateProfilePage from "../auth/pages/profiles/CreateProfilePage";
 import LandingPage from "../auth/pages/Home/Home";
 import WatchPage from "../pages/watch/WatchPage";
+import SearchResults from "../pages/search/SearchResults";
 
 export const router = createBrowserRouter([
   {
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
   {
     path: "/watch/:id", // Nueva ruta para ver películas
     element: <ProfileProtectedRoute><WatchPage /></ProfileProtectedRoute>
+  },
+  {
+    path: "/search",
+    element: <ProfileProtectedRoute><SearchResults /></ProfileProtectedRoute>
   },
   {
     path: "*",

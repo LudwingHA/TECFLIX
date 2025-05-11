@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown } from 'lucide-react';
+import { Search, Bell, ChevronDown, X } from 'lucide-react';
 import { useAuth } from '../../auth/context/AuthContext';
 import { 
   FaUser, 
@@ -19,7 +19,6 @@ import {
   FaSignOutAlt
 } from 'react-icons/fa';
 
-
 const iconComponents = {
   FaUser: FaUser,
   FaUserTie: FaUserTie,
@@ -33,15 +32,15 @@ const iconComponents = {
   FaRobot: FaRobot,
   FaGhost: FaGhost,
   default: FaUser
-  
 };
-
 
 const Navbar = () => {
   const navigate = useNavigate();
   const { selectedProfile, user, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
-  // Mapeo de iconos (debe coincidir con los usados en CreateProfilePage)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const searchInputRef = useRef(null);
   const IconComponent = iconComponents[selectedProfile.icono] || iconComponents.default;
 
   const handleLogout = () => {
@@ -49,6 +48,33 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+      setShowMobileSearch(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  // Cerrar búsqueda móvil al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showMobileSearch && !e.target.closest('.search-container')) {
+        setShowMobileSearch(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMobileSearch]);
 
   return (
     <header className="bg-gradient-to-b from-black to-transparent fixed w-full z-50">
@@ -77,17 +103,73 @@ const Navbar = () => {
 
         {/* Barra de búsqueda y perfil */}
         <div className="flex items-center space-x-4 md:space-x-6">
-          <div className="relative hidden md:block">
+          {/* Búsqueda para desktop */}
+          <form onSubmit={handleSearch} className="relative hidden md:block search-container">
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Títulos, personas, géneros"
+              placeholder="Títulos, géneros"
               className="bg-black bg-opacity-70 border border-gray-600 text-white rounded px-4 pl-10 py-1.5 text-sm focus:outline-none focus:border-white w-64 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </form>
+
+          {/* Icono de búsqueda para móvil */}
+          <button 
+            className="md:hidden text-white hover:text-gray-300 transition-colors"
+            onClick={() => {
+              setShowMobileSearch(true);
+              setTimeout(() => searchInputRef.current?.focus(), 100);
+            }}
+          >
+            <Search size={20} />
+          </button>
+
+          {/* Búsqueda móvil (aparece cuando se hace clic en el icono) */}
+          {showMobileSearch && (
+            <div className="md:hidden absolute top-0 left-0 right-0 bg-black p-3 flex items-center search-container">
+              <form onSubmit={handleSearch} className="flex-1 relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Buscar títulos, géneros..."
+                  className="bg-gray-800 text-white rounded px-4 pl-10 py-2 text-sm focus:outline-none w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </form>
+              <button
+                onClick={() => setShowMobileSearch(false)}
+                className="ml-2 text-white"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center space-x-2">
-            <button className="text-white hover:text-gray-300 transition-colors">
+            <button className="text-white hover:text-gray-300 transition-colors hidden md:block">
               <Bell size={20} />
             </button>
 
@@ -103,7 +185,6 @@ const Navbar = () => {
                   <ChevronDown className={`text-white transition-transform ${showDropdown ? 'rotate-180' : ''}`} size={18} />
                 </button>
 
-                {/* Menú desplegable - ahora con estado controlado */}
                 {showDropdown && (
                   <div 
                     className="absolute right-0 top-10 bg-black border border-gray-700 rounded shadow-lg w-48"

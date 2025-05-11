@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../Layout/Layout';
 import MovieCard from './components/MovieCard';
-
+import { useAuth } from '../../auth/context/AuthContext';
 
 const WatchPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, selectedProfile } = useAuth();
   const [movie, setMovie] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +16,7 @@ const WatchPage = () => {
   const [videoEnded, setVideoEnded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef(null);
+  const progressRef = useRef(0);
 
   // Detectar cambios en pantalla completa
   useEffect(() => {
@@ -57,17 +59,84 @@ const WatchPage = () => {
     }
   };
 
+  // Registrar progreso de visualización - Versión optimizada
   useEffect(() => {
-    fetchMovieData(id);
-  }, [id]);
+    const video = videoRef.current;
+    if (!video || !user || !selectedProfile) return;
 
-  const handleVideoEnd = () => {
+    let lastRegisteredProgress = 0;
+    let updateTimeout;
+
+    const registrarVisualizacion = async (progreso) => {
+      try {
+        // Solo registrar si hay un cambio significativo (>5%) o cada 30 segundos
+        if (Math.abs(progreso - lastRegisteredProgress) > 5 || video.paused) {
+          const response = await axios.post('http://localhost:3000/registros/registrarVisualizacion', {
+            usuarioId: user._id,
+            perfilId: selectedProfile._id,
+            peliculaId: id,
+            progreso: progreso
+          });
+          
+          console.log('Progreso registrado:', progreso, response.data);
+          lastRegisteredProgress = progreso;
+        }
+      } catch (error) {
+        console.error('Error registrando visualización:', error.response?.data || error.message);
+      }
+    };
+
+    const updateProgress = () => {
+      if (video.duration) {
+        const newProgress = (video.currentTime / video.duration) * 100;
+        progressRef.current = newProgress;
+        
+        // Usar debounce para evitar demasiadas llamadas
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          registrarVisualizacion(newProgress);
+        }, 3000);
+      }
+    };
+
+    video.addEventListener('timeupdate', updateProgress);
+    video.addEventListener('pause', updateProgress);
+    video.addEventListener('ended', handleVideoEnd);
+
+    return () => {
+      clearTimeout(updateTimeout);
+      video.removeEventListener('timeupdate', updateProgress);
+      video.removeEventListener('pause', updateProgress);
+      video.removeEventListener('ended', handleVideoEnd);
+    };
+  }, [id, user, selectedProfile]);
+
+  const handleVideoEnd = async () => {
     setVideoEnded(true);
-    // Salir de pantalla completa si está activa
+    
+    if (user && selectedProfile) {
+      try {
+        const response = await axios.post('http://localhost:3000/registros/registrarVisualizacion', {
+          usuarioId: user._id,
+          perfilId: selectedProfile._id,
+          peliculaId: id,
+          progreso: 100,
+          completada: true
+        });
+        console.log('Marcada como completada:', response.data);
+      } catch (error) {
+        console.error('Error registrando finalización:', error.response?.data || error.message);
+      }
+    }
+
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(e => console.log(e));
     }
   };
+
+  useEffect(() => {
+    fetchMovieData(id);
+  }, [id]);
 
   const handlePlayRecommendation = (recId) => {
     setVideoEnded(false);
@@ -78,7 +147,6 @@ const WatchPage = () => {
     navigate('/browse');
   };
 
-  // Resto del código de renderizado...
   if (loading) {
     return (
       <Layout>
@@ -92,11 +160,11 @@ const WatchPage = () => {
   if (error) {
     return (
       <Layout>
-        <div className="bg-black min-h-screen flex items-center justify-center">
-          <div className="text-white text-xl">{error}</div>
+        <div className="bg-black min-h-screen flex flex-col items-center justify-center">
+          <div className="text-white text-xl mb-4">{error}</div>
           <button 
             onClick={handleBackToHome}
-            className="mt-4 bg-gray-600 text-white px-4 py-2 rounded"
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
           >
             Volver al inicio
           </button>
@@ -146,11 +214,19 @@ const WatchPage = () => {
               
               <div className="flex space-x-4">
                 <button 
-                  className="bg-gray-600 text-white px-6 py-2 rounded font-bold hover:bg-gray-700 transition-colors"
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-bold transition-colors"
                   onClick={handleBackToHome}
                 >
                   Volver al inicio
                 </button>
+                {movie && (
+                  <button 
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors"
+                    onClick={() => handlePlayRecommendation(movie._id)}
+                  >
+                    Volver a ver
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -162,9 +238,9 @@ const WatchPage = () => {
             <div className="flex items-center mb-4">
               <span className="text-green-500 font-semibold mr-4">{movie.rating}</span>
               <span className="mr-4">{movie.duration}</span>
-              <div className="flex">
+              <div className="flex flex-wrap gap-2">
                 {movie.genre.map((g, index) => (
-                  <span key={index} className="bg-gray-800 px-2 py-1 rounded mr-2 text-sm">
+                  <span key={index} className="bg-gray-800 px-2 py-1 rounded text-sm">
                     {g}
                   </span>
                 ))}
